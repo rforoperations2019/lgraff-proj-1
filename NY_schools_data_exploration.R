@@ -29,7 +29,7 @@ df_NY_schools_withoutpct <- df_NY_schools %>%
 
 df_NY_schools_corrected <- cbind(df_NY_schools_withoutpct, new_pct)
 
-# Now conver the counts to numeric
+# Now convert the counts to numeric
 df_NY_schools_corrected[, c(20:28)] <- sapply(df_NY_schools_corrected[, c(20:28)],
                                               as.numeric)
 
@@ -66,13 +66,17 @@ all_stud_long <- melt(all_stud,
                       id.vars = c("AGGREGATION_TYPE", "AGGREGATION_NAME", "AGGREGATION_CODE"))
 
 # Subset by variables of interest for bar chart
-# TEST WITH DATA LONG, remember to change back to all_stud
-all_stud_long_bar <- data_long %>% 
+all_stud_long_bar <- all_stud_long %>% 
   filter(variable %in% c('GRAD_PCT', 'DROPOUT_PCT', 'STILL_ENR_PCT', 'GED_PCT'))
 
 all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
 
-ggplot(data = all_stud_long_bar) +
+# use this to test the bar chart
+test<- all_stud_long_bar %>%  
+  filter(AGGREGATION_NAME %in% c("All Districts and Charters", "County: BRONX")) 
+
+# Bar chart displaying graduation, dropout, still enrolled, and GED percent
+ggplot(data = test) +
   geom_bar(stat = "identity",
            aes(x = variable, y = value, fill = AGGREGATION_NAME),
            position = 'dodge') +
@@ -88,6 +92,21 @@ ggplot(data = all_stud) +
 
 df_gender <- df_county %>% 
   filter(SUBGROUP_NAME %in% c('Male', 'Female'))
+
+# Test the pie chart with the Bronx
+bronx_test<- df_gender %>%  
+  filter(AGGREGATION_NAME %in% c("All Districts and Charters", "County: BRONX")) %>% 
+  arrange(desc(SUBGROUP_NAME)) %>% 
+  mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
+
+
+ggplot(bronx_test, aes(x = "", y = ENROLL_CNT, fill = SUBGROUP_NAME)) +
+  geom_bar(stat = "identity", color = "white") +
+  coord_polar("y", start = 0) +
+  geom_text(aes(y = y_label_pos, label = ENROLL_CNT)) +
+  theme_void() +
+  theme(legend.title = element_blank()) +
+  ggtitle("Gender Demographics")
 
 df_race <- df_county %>% 
   filter(SUBGROUP_CODE %in% c(4,5,6,7,8,9))
