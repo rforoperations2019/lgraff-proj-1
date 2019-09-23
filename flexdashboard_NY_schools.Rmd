@@ -113,15 +113,18 @@ Inputs {.sidebar}
 ```{r}
 
 # Select county
-selectInput(inputId = "county", "County",
+selectInput(inputId = "county", "Choose a County",
             choices = unique(county_names$AGGREGATION_NAME))
 
 br()
 
-# Select gender
-checkboxGroupInput(inputId = "gender", label = "Student Gender", 
-                   choices = unique(df_gender$SUBGROUP_NAME),
-                   selected = c("Female", "Male"),
+# Select metrics
+checkboxGroupInput(inputId = "metrics", label = "Choose a Metric", 
+                   choices = c("Graduation Rate" = "GRAD_PCT",
+                               "Dropout Rate" = "DROPOUT_PCT",
+                               "GED Prep Program Rate" = "GED_PCT",
+                               "Still Enrolled Rate" = "STILL_ENR_PCT"),
+                   selected = c('GRAD_PCT'),
                    inline = TRUE)
 
 br()
