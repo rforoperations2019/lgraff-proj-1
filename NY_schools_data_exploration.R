@@ -57,6 +57,8 @@ df_county <- subset(x = df_NY_schools_corrected,
 # Create dataset of county-level appended to state-level
 df_county_state <- rbind(df_county, df_state)
 
+
+
 # First look at data for all students
 all_stud <- df_county_state %>% 
   filter(SUBGROUP_NAME == "All Students") %>% 
@@ -70,6 +72,8 @@ all_stud_long_bar <- all_stud_long %>%
   filter(variable %in% c('GRAD_PCT', 'DROPOUT_PCT', 'STILL_ENR_PCT', 'GED_PCT'))
 
 all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
+
+
 
 # use this to test the bar chart
 test<- all_stud_long_bar %>%  

@@ -85,6 +85,12 @@ all_stud_long_bar <- all_stud_long %>%
 
 all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
 
+# Create list of counties
+county_names <- all_stud_long_bar %>% 
+  filter(AGGREGATION_TYPE != "Statewide")
+
+county_names$AGGREGATION_NAME <- as.character(county_names$AGGREGATION_NAME)
+
 # Create individual subgroup datasets
 df_gender <- df_county %>% 
   filter(SUBGROUP_NAME %in% c('Male', 'Female'))
@@ -100,21 +106,20 @@ Inputs {.sidebar}
 ```{r}
 
 # Select county
-selectInput(inputId = "county", label = "Choose a county",
-            choices = unique(all_stud_long_bar$AGGREGATION_NAME),
-            selected = "All Districts and Charters")
+      selectInput(inputId = "county", "County",
+                  choices = unique(county_names$AGGREGATION_NAME))
 
 br()
 
 # Select gender
-checkboxGroupInput(inputId = "gender", label = "Gender", 
+checkboxGroupInput(inputId = "gender", label = "Student Gender", 
                    choices = unique(df_gender$SUBGROUP_NAME),
                    selected = c("Female", "Male"),
                    inline = TRUE)
 
 br()
 # Select ethnicity
-checkboxGroupInput(inputId = "Ethnicity", label = "Ethnicity", 
+checkboxGroupInput(inputId = "Ethnicity", label = "Student Ethnicity", 
                    choices = unique(df_race$SUBGROUP_NAME),
                    selected = unique(df_race$SUBGROUP_NAME),
                    inline = TRUE)
@@ -123,32 +128,35 @@ checkboxGroupInput(inputId = "Ethnicity", label = "Ethnicity",
 ```
 
 
+County-level Metrics
+=====================================  
 
-Outputs
------------------------------------------------------------------------
-
-### Scatterplot of weight and miles per gallon
+### County-level Metrics
 
 ```{r}
+
 selected_county <- reactive({
-  all_stud_long_bar %>%  
-    filter(AGGREGATION_NAME %in% c("All Districts and Charters", input$county)) 
+    all_stud_long_bar %>%
+    filter(AGGREGATION_NAME == input$county)
+  })
+
+renderText({
+  print(input$county)
 })
 
-```
+renderDataTable(selected_county())
 
-Column {data-width=350}
------------------------------------------------------------------------
+# Bar chart displaying graduation, dropout, still enrolled, and GED prep program rates
 
-### Chart B
-
-```{r}
-
-```
-
-### Chart C
-
-```{r}
+  
+  renderPlot({
+    
+    ggplot(selected_county()) +
+      geom_bar(stat = "identity",
+               aes(x = variable, y = value, fill = AGGREGATION_NAME))
+    
+  })
 
 ```
+
 
