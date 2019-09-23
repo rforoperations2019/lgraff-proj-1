@@ -99,11 +99,17 @@ df_gender <- df_county %>%
 
 # Test the pie chart with the Bronx
 bronx_test<- df_gender %>%  
-  filter(AGGREGATION_NAME %in% c("All Districts and Charters", "County: BRONX")) %>% 
+  filter(AGGREGATION_NAME %in% c("County: BRONX")) %>% 
   arrange(desc(SUBGROUP_NAME)) %>% 
   mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
 
 
+# Test: dropout rate by gender for a given county
+ggplot(data = bronx_test) +
+  geom_bar(stat = "identity",
+           aes(x = SUBGROUP_NAME, y = DROPOUT_PCT))
+
+# Test: pie chart by gender for a given county
 ggplot(bronx_test, aes(x = "", y = ENROLL_CNT, fill = SUBGROUP_NAME)) +
   geom_bar(stat = "identity", color = "white") +
   coord_polar("y", start = 0) +

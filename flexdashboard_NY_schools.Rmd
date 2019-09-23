@@ -98,6 +98,13 @@ df_gender <- df_county %>%
 df_race <- df_county %>% 
   filter(SUBGROUP_CODE %in% c(4,5,6,7,8,9))
 
+# Test charts with Bronx county
+# Remove later
+bronx_test<- df_gender %>%  
+  filter(AGGREGATION_NAME %in% c("County: BRONX")) %>% 
+  arrange(desc(SUBGROUP_NAME)) %>% 
+  mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
+
 ```
 
 
@@ -106,8 +113,8 @@ Inputs {.sidebar}
 ```{r}
 
 # Select county
-      selectInput(inputId = "county", "County",
-                  choices = unique(county_names$AGGREGATION_NAME))
+selectInput(inputId = "county", "County",
+            choices = unique(county_names$AGGREGATION_NAME))
 
 br()
 
@@ -140,23 +147,30 @@ selected_county <- reactive({
     filter(AGGREGATION_NAME == input$county)
   })
 
+# **This renders
 renderText({
   print(input$county)
 })
 
+# **This does not render
 renderDataTable(selected_county())
 
-# Bar chart displaying graduation, dropout, still enrolled, and GED prep program rates
-
-  
-  renderPlot({
-    
-    ggplot(selected_county()) +
-      geom_bar(stat = "identity",
-               aes(x = variable, y = value, fill = AGGREGATION_NAME))
+# Bar chart displaying graduation, dropout, still enrolled, and GED prep program rates by county as compared to NY state averages
+# **This does not render
+renderPlot({
+  ggplot(selected_county()) +
+    geom_bar(stat = "identity",
+             aes(x = variable, y = value, fill = AGGREGATION_NAME))
     
   })
 
+# Bar chart displaying requested metrics per county by gender
+# **This does not render
+renderPlot({
+  ggplot(data = bronx_test) +
+  geom_bar(stat = "identity",
+           aes(x = SUBGROUP_NAME, y = DROPOUT_PCT))
+})
 ```
 
 

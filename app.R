@@ -10,6 +10,7 @@
 library(shiny)
 library(ggplot2)
 library(dplyr)
+library(reshape2)
 
 #Prepare the dataset
 # Read and examine fields of dataset
@@ -83,7 +84,7 @@ all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
 county_names <- all_stud_long_bar %>% 
   filter(AGGREGATION_TYPE != "Statewide")
 
-county_names$AGGREGATION_TYPE <- as.character(county_names$AGGREGATION_TYPE)
+county_names$AGGREGATION_NAME <- as.character(county_names$AGGREGATION_NAME)
 
 # Create individual subgroup datasets
 df_gender <- df_county %>% 
@@ -91,6 +92,12 @@ df_gender <- df_county %>%
 
 df_race <- df_county %>% 
   filter(SUBGROUP_CODE %in% c(4,5,6,7,8,9))
+
+# Test the pie chart with the Bronx
+bronx_test<- df_gender %>%  
+  filter(AGGREGATION_NAME %in% c("County: BRONX")) %>% 
+  arrange(desc(SUBGROUP_NAME)) %>% 
+  mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -115,7 +122,8 @@ ui <- fluidPage(
    
       # Show a plot of the generated distribution
       mainPanel(
-         plotOutput("distPlot")
+         plotOutput("testPlot1"),
+         plotOutput("testPlot2")
       )
    )
 )
@@ -128,12 +136,17 @@ server <- function(input, output) {
     filter(AGGREGATION_NAME == input$county)
   })
   
-  output$distPlot <- renderPlot({
-    
+  output$testPlot1 <- renderPlot({
     ggplot(selected_county()) +
       geom_bar(stat = "identity",
                aes(x = variable, y = value, fill = AGGREGATION_NAME))
     
+  })
+  
+  output$testPlot2 <- renderPlot({
+    ggplot(data = bronx_test) +
+      geom_bar(stat = "identity",
+               aes(x = SUBGROUP_NAME, y = DROPOUT_PCT))
   })
   
 }
