@@ -50,7 +50,15 @@ df_state <- subset(df_NY_schools_corrected,
                    subset = AGGREGATION_TYPE == 'Statewide' &
                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
 
-# Scatterplot to see how graduation rates have changed over time, for 2012/13/14 cohorts
+# Subset data to a single aggregation index. In this case, we will choose county
+df_county <- subset(x = df_NY_schools_corrected,
+                    subset = AGGREGATION_TYPE == "County" &
+                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
+
+# Create dataset of county-level appended to state-level
+df_county_state <- rbind(df_county, df_state)
+
+# Scatterplot dataset to see how graduation rates have changed over time, for 2012/13/14 cohorts
 df_state_allcohort <- df_state %>% 
   filter(SUBGROUP_NAME == "All Students") %>% 
   mutate(Year = substr(MEMBERSHIP_DESC, 1, 4))
@@ -60,20 +68,13 @@ cohort_subset <- cohort_melted %>%
   filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT", "STILL_ENR_PCT"))
 cohort_subset$value <- as.numeric(cohort_subset$value)
 
+
 ggplot(cohort_subset) +
   geom_point(aes(x = Year, y = value, color = variable)) +
   ylab("") +
   ggtitle("Graduation, Dropout, and Still-Enrolled Rates by Cohort") +
   theme(legend.title = element_blank()) +
   scale_y_continuous(breaks=seq(0,1,.10))
-
-# Subset data to a single aggregation index. In this case, we will choose county
-df_county <- subset(x = df_NY_schools_corrected,
-                    subset = AGGREGATION_TYPE == "County" &
-                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
-
-# Create dataset of county-level appended to state-level
-df_county_state <- rbind(df_county, df_state)
 
 
 

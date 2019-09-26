@@ -20,8 +20,6 @@ library(shiny)
 #Prepare the dataset
 # Read and examine fields of dataset
 df_NY_schools <- read.csv(file = "GRAD_RATE_AND_OUTCOMES_2018.csv")
-names(df_NY_schools)
-str(df_NY_schools)
 
 df_NY_schools[, c(20:36)] <- sapply(df_NY_schools[, c(20:36)], as.character)
 
@@ -71,14 +69,14 @@ df_county <- subset(x = df_NY_schools_corrected,
                       MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
 
 # Create dataset of county-level appended to state-level
-df_county_state <- rbind(df_county, df_state)
-
-# Scatterplot dataset to see how graduation rates have changed over time, for 2012/13/14 cohorts
-df_state_allcohort <- df_state %>% 
-  filter(SUBGROUP_NAME == "All Students") %>% 
+df_county_state <- rbind(df_county, df_state) %>% 
   mutate(Year = substr(MEMBERSHIP_DESC, 1, 4))
 
-cohort_melted <- melt(df_state_allcohort, id.vars = "Year")
+# Scatterplot dataset to see how graduation rates have changed over time, for 2012/13/14 cohorts
+df_state_allcohort <- df_county_state %>% 
+  filter(SUBGROUP_NAME == "All Students")
+
+cohort_melted <- melt(df_state_allcohort, id.vars = c("COUNTY_NAME", "Year"))
 cohort_subset <- cohort_melted %>%
   filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT", "STILL_ENR_PCT"))
 cohort_subset$value <- as.numeric(cohort_subset$value)
@@ -90,7 +88,8 @@ all_stud <- df_county_state %>%
   arrange(desc(DROPOUT_CNT))
 
 all_stud_long <- melt(all_stud,
-                      id.vars = c("AGGREGATION_TYPE", "AGGREGATION_NAME", "AGGREGATION_CODE"))
+                      id.vars = c("AGGREGATION_TYPE", "AGGREGATION_NAME", 
+                                  "COUNTY_NAME", "AGGREGATION_CODE"))
 
 # Subset by variables of interest for bar chart
 all_stud_long_bar <- all_stud_long %>% 
@@ -102,21 +101,22 @@ all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
 county_names <- all_stud_long_bar %>% 
   filter(AGGREGATION_TYPE != "Statewide")
 
-county_names$AGGREGATION_NAME <- as.character(county_names$AGGREGATION_NAME)
+county_names$COUNTY_NAME <- as.character(county_names$COUNTY_NAME)
 
-# Create individual subgroup datasets
-df_gender <- df_county %>% 
-  filter(SUBGROUP_NAME %in% c('Male', 'Female'))
 
-df_race <- df_county %>% 
-  filter(SUBGROUP_CODE %in% c(4,5,6,7,8,9))
-
-# Test charts with Bronx county
-# Remove later
-bronx_test<- df_gender %>%  
-  filter(AGGREGATION_NAME %in% c("County: BRONX")) %>% 
-  arrange(desc(SUBGROUP_NAME)) %>% 
-  mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
+# # Create individual subgroup datasets
+# df_gender <- df_county %>% 
+#   filter(SUBGROUP_NAME %in% c('Male', 'Female'))
+# 
+# df_race <- df_county %>% 
+#   filter(SUBGROUP_CODE %in% c(4,5,6,7,8,9))
+# 
+# # Test charts with Bronx county
+# # Remove later
+# bronx_test<- df_gender %>%  
+#   filter(AGGREGATION_NAME %in% c("County: BRONX")) %>% 
+#   arrange(desc(SUBGROUP_NAME)) %>% 
+#   mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
 
 ```
 
@@ -127,27 +127,21 @@ Inputs {.sidebar}
 
 # Select a county
 selectInput(inputId = "county", "Select a County",
-            choices = unique(county_names$AGGREGATION_NAME))
+            choices = unique(county_names$COUNTY_NAME))
 
 br()
 
-# Select metric(s)
-checkboxGroupInput(inputId = "metrics", label = "Select Metric(s)", 
-                   choices = c("Graduation Rate" = "GRAD_PCT",
-                               "Dropout Rate" = "DROPOUT_PCT",
-                               "GED Prep Program Rate" = "GED_PCT",
-                               "Still Enrolled Rate" = "STILL_ENR_PCT"),
-                   selected = c('GRAD_PCT'),
-                   inline = TRUE)
+# Select cohort year
+radioButtons(inputId = "cohortYear", "Select a cohort year",
+              choices = unique(df_county_state$Year), selected = '2014')
+
 
 br()
-# Select one or multiple student ethnicities
-checkboxGroupInput(inputId = "Ethnicity", label = "Select one or multiple student
-                   ethnicities", 
-                   choices = unique(df_race$SUBGROUP_NAME),
-                   selected = unique(df_race$SUBGROUP_NAME),
-                   inline = TRUE)
-
+# Select student demographic group
+selectInput(inputId = "demoGroup", label = "Select student demographic  group", 
+                   choices = c("Gender", "Ethnicity", "Economic Status", 
+                               "Migrant Status"),
+                   selected = "Gender")
     
 ```
 
