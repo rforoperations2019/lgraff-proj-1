@@ -44,15 +44,33 @@ df_NY_schools_corrected <- df_NY_schools_corrected %>%
          -NYC_IND, -BOCES_CODE, -MEMBERSHIP_CODE, -MEMBERSHIP_KEY)
 
 # Subset by statewide so have statewide reference for individual counties
-# Let's also choose the 4 year outcome of the 2014 cohort (dataset is backwards looking)
+# Remove one of the 4 year outcomes of the 2014 cohort (there is a june & august value)
+# Choose August as it is more recent
 df_state <- subset(df_NY_schools_corrected,
                    subset = AGGREGATION_TYPE == 'Statewide' &
-                     MEMBERSHIP_DESC == '2014 Total Cohort - 4 Year Outcome - August 2018')
+                     MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
+
+# Scatterplot to see how graduation rates have changed over time, for 2012/13/14 cohorts
+df_state_allcohort <- df_state %>% 
+  filter(SUBGROUP_NAME == "All Students") %>% 
+  mutate(Year = substr(MEMBERSHIP_DESC, 1, 4))
+
+cohort_melted <- melt(df_state_allcohort, id.vars = "Year")
+cohort_subset <- cohort_melted %>%
+  filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT", "STILL_ENR_PCT"))
+cohort_subset$value <- as.numeric(cohort_subset$value)
+
+ggplot(cohort_subset) +
+  geom_point(aes(x = Year, y = value, color = variable)) +
+  ylab("") +
+  ggtitle("Graduation, Dropout, and Still-Enrolled Rates by Cohort") +
+  theme(legend.title = element_blank()) +
+  scale_y_continuous(breaks=seq(0,1,.10))
 
 # Subset data to a single aggregation index. In this case, we will choose county
 df_county <- subset(x = df_NY_schools_corrected,
                     subset = AGGREGATION_TYPE == "County" &
-                      MEMBERSHIP_DESC == '2014 Total Cohort - 4 Year Outcome - August 2018')
+                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
 
 # Create dataset of county-level appended to state-level
 df_county_state <- rbind(df_county, df_state)
@@ -73,7 +91,9 @@ all_stud_long_bar <- all_stud_long %>%
 
 all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
 
-
+t1 <- df_county %>% 
+  filter(AGGREGATION_NAME == "County: BRONX" & SUBGROUP_NAME == "All Students")
+enrolled <- t1$ENROLL_CNT
 
 # use this to test the bar chart
 test<- all_stud_long_bar %>%  

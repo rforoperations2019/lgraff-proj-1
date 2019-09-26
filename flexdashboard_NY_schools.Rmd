@@ -20,6 +20,8 @@ library(shiny)
 #Prepare the dataset
 # Read and examine fields of dataset
 df_NY_schools <- read.csv(file = "GRAD_RATE_AND_OUTCOMES_2018.csv")
+names(df_NY_schools)
+str(df_NY_schools)
 
 df_NY_schools[, c(20:36)] <- sapply(df_NY_schools[, c(20:36)], as.character)
 
@@ -57,18 +59,29 @@ df_NY_schools_corrected <- df_NY_schools_corrected %>%
          -NYC_IND, -BOCES_CODE, -MEMBERSHIP_CODE, -MEMBERSHIP_KEY)
 
 # Subset by statewide so have statewide reference for individual counties
-# Let's also choose the 4 year outcome of the 2014 cohort (dataset is backwards looking)
+# Remove one of the 4 year outcomes of the 2014 cohort (there is a june & august value)
+# Choose August as it is more recent
 df_state <- subset(df_NY_schools_corrected,
                    subset = AGGREGATION_TYPE == 'Statewide' &
-                     MEMBERSHIP_DESC == '2014 Total Cohort - 4 Year Outcome - August 2018')
+                     MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
 
 # Subset data to a single aggregation index. In this case, we will choose county
 df_county <- subset(x = df_NY_schools_corrected,
                     subset = AGGREGATION_TYPE == "County" &
-                      MEMBERSHIP_DESC == '2014 Total Cohort - 4 Year Outcome - August 2018')
+                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
 
 # Create dataset of county-level appended to state-level
 df_county_state <- rbind(df_county, df_state)
+
+# Scatterplot dataset to see how graduation rates have changed over time, for 2012/13/14 cohorts
+df_state_allcohort <- df_state %>% 
+  filter(SUBGROUP_NAME == "All Students") %>% 
+  mutate(Year = substr(MEMBERSHIP_DESC, 1, 4))
+
+cohort_melted <- melt(df_state_allcohort, id.vars = "Year")
+cohort_subset <- cohort_melted %>%
+  filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT", "STILL_ENR_PCT"))
+cohort_subset$value <- as.numeric(cohort_subset$value)
 
 
 # First look at data for all students
@@ -112,14 +125,14 @@ Inputs {.sidebar}
 =====================================
 ```{r}
 
-# Select county
-selectInput(inputId = "county", "Choose a County",
+# Select a county
+selectInput(inputId = "county", "Select a County",
             choices = unique(county_names$AGGREGATION_NAME))
 
 br()
 
-# Select metrics
-checkboxGroupInput(inputId = "metrics", label = "Choose a Metric", 
+# Select metric(s)
+checkboxGroupInput(inputId = "metrics", label = "Select Metric(s)", 
                    choices = c("Graduation Rate" = "GRAD_PCT",
                                "Dropout Rate" = "DROPOUT_PCT",
                                "GED Prep Program Rate" = "GED_PCT",
@@ -128,8 +141,9 @@ checkboxGroupInput(inputId = "metrics", label = "Choose a Metric",
                    inline = TRUE)
 
 br()
-# Select ethnicity
-checkboxGroupInput(inputId = "Ethnicity", label = "Student Ethnicity", 
+# Select one or multiple student ethnicities
+checkboxGroupInput(inputId = "Ethnicity", label = "Select one or multiple student
+                   ethnicities", 
                    choices = unique(df_race$SUBGROUP_NAME),
                    selected = unique(df_race$SUBGROUP_NAME),
                    inline = TRUE)
@@ -138,10 +152,10 @@ checkboxGroupInput(inputId = "Ethnicity", label = "Student Ethnicity",
 ```
 
 
-County-level Metrics
+General County-level Metrics
 =====================================  
 
-### County-level Metrics
+### General County-level Metrics
 
 ```{r}
 
@@ -156,7 +170,18 @@ renderText({
 })
 
 # **This does not render
-renderDataTable(selected_county())
+DT::renderDataTable(selected_county())
+
+# Value box for number of students in the county
+county_students <- reactive({
+  df_county %>% 
+    filter(AGGREGATION_NAME == input$county & SUBGROUP_NAME == "All Students")
+})
+
+renderValueBox({
+  enrolled_students <- format(county_students()$ENROLL_CNT, big.mark = ",") 
+  valueBox(caption = "Total Number of Enrolled Students", value = enrolled_students)
+})
 
 # Bar chart displaying graduation, dropout, still enrolled, and GED prep program rates by county as compared to NY state averages
 # **This does not render
@@ -167,13 +192,59 @@ renderPlot({
     
   })
 
-# Bar chart displaying requested metrics per county by gender
-# **This does not render
+```
+
+Gender-specific Metrics
+=====================================  
+
+### Gender-makeup
+
+```{r}
+
+# Filter by county
+gender_county <- reactive({
+  df_gender %>%  
+    filter(AGGREGATION_NAME %in% input$county) %>% 
+    arrange(desc(SUBGROUP_NAME)) %>% 
+    mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
+})
+
+# Test: pie chart by gender for a given county
 renderPlot({
-  ggplot(data = bronx_test) +
-  geom_bar(stat = "identity",
-           aes(x = SUBGROUP_NAME, y = DROPOUT_PCT))
+  ggplot(gender_county(), aes(x = "", y = ENROLL_CNT, fill = SUBGROUP_NAME)) +
+    geom_bar(stat = "identity", color = "white") +
+    coord_polar("y", start = 0) +
+    geom_text(aes(y = y_label_pos, label = ENROLL_CNT)) +
+    theme_void() +
+    theme(legend.title = element_blank()) +
+    ggtitle("Gender Demographics")
 })
 ```
+
+### Graduation rate metrics by gender
+```{r}
+# Bar chart displaying requested metrics per county by gender
+# **Need to change y-axis to a constant max value**
+renderPlot({
+  ggplot(data = gender_county()) +
+  geom_bar(stat = "identity",
+           aes(x = SUBGROUP_NAME, y = input$metrics))
+})
+
+  
+```
+
+Page 1: General County-level Stats
+  inputs: county, year
+  outputs: bar chart comparing rates to NY state avg
+          value box: total enrolled
+          gauge: graduation rate
+Page 2: Stats by demographic
+  inputs: county, year, demographic group
+  outputs: bar chart comparing rates by group
+          gauge: how        
+Page 2: Trends over time by county
+  inputs: county
+  outputs: scatterplot by year
 
 
