@@ -140,8 +140,8 @@ radioButtons(inputId = "cohortYear", "Select a cohort year",
 br()
 # Select student demographic group
 selectInput(inputId = "demoGroup", label = "Select student demographic  group", 
-                   choices = c("Gender", "Ethnicity", "Economic Status", 
-                               "Migrant Status"),
+                   choices = c("Gender" = "Gen", "Ethnicity" = "Eth", "Economic 
+                               Status" = "Eco", "Migrant Status" = "Mig"),
                    selected = "Gender")
     
 ```
@@ -152,8 +152,9 @@ General County-level Metrics
 
 Column
 -------------------------------------
-    
+
 ### Student Enrollment
+
 
 ```{r}
 
@@ -171,8 +172,21 @@ renderValueBox({
 })
 
 ```
-    
+
+### Graduation Rate
+
+```{r}
+renderGauge({
+  grad_pct <-100*county_students()$GRAD_PCT
+  gauge(grad_pct, min = 0, max = 100, symbol = '%', 
+      gaugeSectors(success = c(90, 100), warning = c(75, 89), danger = c(0, 74)
+      ))
+})
+
+```
+
 ### County vs. State Metrics Comparison
+
 ```{r}
 
 # Dataset for county and cohort year
@@ -190,53 +204,76 @@ renderPlot({
     geom_bar(stat = "identity",
              aes(x = variable, y = value, fill = AGGREGATION_NAME),
              position = "dodge") +
-  xlab("") +
-  ylab('Rate') + 
-  theme(legend.title = element_blank(),
+    xlab("") +
+    ylab('Rate') + 
+    theme(legend.title = element_blank(),
         legend.text = element_text(size=14),
         axis.title = element_text(size=14),
         axis.text = element_text(size=14)) +
-  scale_y_continuous(breaks=seq(0,1,.10))
+    scale_y_continuous(breaks=seq(0,1,.10))
   })
 
 ```
 
-Gender-specific Metrics
+Student Demographics
 =====================================  
 
 ### Gender-makeup
 
 ```{r}
 
-# Filter by county
-gender_county <- reactive({
-  df_gender %>%  
-    filter(AGGREGATION_NAME %in% input$county) %>% 
-    arrange(desc(SUBGROUP_NAME)) %>% 
-    mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
+# Prepare melted dataset
+dem_melt <- melt(df_county, id.vars = c("SUBGROUP_CODE", "SUBGROUP_NAME",
+                                       "COUNTY_NAME", "Year")) %>% 
+  filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT")) 
+
+dem_melt$value <- as.numeric(dem_melt$value)
+# Citation for this method: https://stackoverflow.com/questions/37710358/how-to-create-if-statement-with-reactive-values-in-r-shiny?rq=1
+
+# Select the subgroup codes for the given demographic input
+state <- reactiveValues()
+
+observeEvent(input$demoGroup, {
+  if(input$demoGroup == "Gen") {
+    state$a = c(2,3)}
+  if(input$demoGroup == "Eth") {
+    state$a = c(4,5,6,7,8,9)}
+  if(input$demoGroup == "Eco") {
+    state$a = c(15,16)}
+  if(input$demoGroup == "Mig") {
+    state$a = c(17,18)}
 })
 
-# Test: pie chart by gender for a given county
-renderPlot({
-  ggplot(gender_county(), aes(x = "", y = ENROLL_CNT, fill = SUBGROUP_NAME)) +
-    geom_bar(stat = "identity", color = "white") +
-    coord_polar("y", start = 0) +
-    geom_text(aes(y = y_label_pos, label = ENROLL_CNT)) +
-    theme_void() +
-    theme(legend.title = element_blank()) +
-    ggtitle("Gender Demographics")
+# Filter by selected county, year, and demographic group
+selected_dem <- reactive({
+  dem_melt %>% 
+    filter(SUBGROUP_CODE %in% state$a) %>% 
+    filter(COUNTY_NAME == input$county & Year == input$cohortYear)
 })
+
+# Bar chart displaying metrics by demographic group
+renderPlot({
+ggplot(data = selected_dem()) +
+  geom_bar(stat = "identity",
+           aes(x = variable, y = value, fill = SUBGROUP_NAME),
+           position = "dodge") +
+    xlab("") +
+    ylab('Rate') +
+    ggtitle("Metrics by Demographic Group")
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size=14),
+        axis.title = element_text(size=14),
+        axis.text = element_text(size=14)) +
+  scale_y_continuous(breaks=seq(0,1,.10))
+})
+
+
+
 ```
 
 ### Graduation rate metrics by gender
 ```{r}
-# Bar chart displaying requested metrics per county by gender
-# **Need to change y-axis to a constant max value**
-renderPlot({
-  ggplot(data = gender_county()) +
-  geom_bar(stat = "identity",
-           aes(x = SUBGROUP_NAME, y = input$metrics))
-})
+
 
   
 ```
@@ -250,7 +287,7 @@ Page 2: Stats by demographic
   inputs: county, year, demographic group
   outputs: bar chart comparing rates by group
           gauge: how        
-Page 2: Trends over time by county
+Page 3: Trends over time by county
   inputs: county
   outputs: scatterplot by year
 

@@ -98,7 +98,8 @@ enrolled <- t1$ENROLL_CNT
 
 # use this to test the bar chart
 test<- all_stud_long_bar %>%  
-  filter(AGGREGATION_NAME %in% c("All Districts and Charters", "County: BRONX")) 
+  filter(AGGREGATION_NAME %in% c("All Districts and Charters", "County: BRONX") &
+           year == '2014') 
 
 # Bar chart displaying graduation, dropout, still enrolled, and GED percent
 ggplot(data = test) +
@@ -149,4 +150,30 @@ ggplot(data = df_gender) +
 ggplot(data = df_race) + 
   geom_bar(stat = "identity", aes(x = SUBGROUP_NAME, y = DROPOUT_PCT))
 
-                 
+
+# Testing graphs
+test<- all_stud_long_bar %>%  
+  filter(AGGREGATION_NAME %in% c("All Districts and Charters", "County: BRONX") &
+           Year == '2014') 
+
+ggplot(data = test) +
+  geom_bar(stat = "identity",
+           aes(x = variable, y = value, fill = AGGREGATION_NAME),
+           position = "dodge")
+
+
+# Demgographics
+dem_test <- df_county %>% 
+  filter(SUBGROUP_CODE %in% c(2,3)) %>% 
+  filter(COUNTY_NAME == "BRONX" & Year == "2014")
+
+dem_melt <- melt(df_county, id.vars = c("SUBGROUP_CODE", "SUBGROUP_NAME",
+                                       "COUNTY_NAME", "Year")) %>% 
+  filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT", "STILL_ENR_PCT")) 
+
+dem_melt$value <- as.numeric(dem_melt_subset$value)
+
+ggplot(data = dem_melt_subset) +
+  geom_bar(stat = "identity",
+           aes(x = variable, y = value, fill = SUBGROUP_NAME),
+           position = "dodge")
