@@ -51,10 +51,11 @@ df_NY_schools_corrected$dropout_check <- df_NY_schools_corrected$ENROLL_CNT -
   df_NY_schools_corrected$GRAD_CNT -
   df_NY_schools_corrected$STILL_ENR_CNT
 
-# Remove unnecessary columns
+# Remove unnecessary columns and add year
 df_NY_schools_corrected <- df_NY_schools_corrected %>% 
   select(-LEA_BEDS, -LEA_NAME, -NRC_DESC,
-         -NYC_IND, -BOCES_CODE, -MEMBERSHIP_CODE, -MEMBERSHIP_KEY)
+         -NYC_IND, -BOCES_CODE, -MEMBERSHIP_CODE, -MEMBERSHIP_KEY) %>% 
+    mutate(Year = substr(MEMBERSHIP_DESC, 1, 4))
 
 # Subset by statewide so have statewide reference for individual counties
 # Remove one of the 4 year outcomes of the 2014 cohort (there is a june & august value)
@@ -69,8 +70,7 @@ df_county <- subset(x = df_NY_schools_corrected,
                       MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
 
 # Create dataset of county-level appended to state-level
-df_county_state <- rbind(df_county, df_state) %>% 
-  mutate(Year = substr(MEMBERSHIP_DESC, 1, 4))
+df_county_state <- rbind(df_county, df_state)
 
 # Scatterplot dataset to see how graduation rates have changed over time, for 2012/13/14 cohorts
 df_state_allcohort <- df_county_state %>% 
@@ -89,7 +89,7 @@ all_stud <- df_county_state %>%
 
 all_stud_long <- melt(all_stud,
                       id.vars = c("AGGREGATION_TYPE", "AGGREGATION_NAME", 
-                                  "COUNTY_NAME", "AGGREGATION_CODE"))
+                                  "COUNTY_NAME", "AGGREGATION_CODE", "Year"))
 
 # Subset by variables of interest for bar chart
 all_stud_long_bar <- all_stud_long %>% 
@@ -126,7 +126,8 @@ Inputs {.sidebar}
 ```{r}
 
 # Select a county
-selectInput(inputId = "county", "Select a County",
+# Need to alphabetize
+selectInput(inputId = "county", "Select a county",
             choices = unique(county_names$COUNTY_NAME))
 
 br()
@@ -149,41 +150,53 @@ selectInput(inputId = "demoGroup", label = "Select student demographic  group",
 General County-level Metrics
 =====================================  
 
-### General County-level Metrics
+Column
+-------------------------------------
+    
+### Student Enrollment
 
 ```{r}
 
-selected_county <- reactive({
-    all_stud_long_bar %>%
-    filter(AGGREGATION_NAME == input$county)
-  })
-
-# **This renders
-renderText({
-  print(input$county)
-})
-
-# **This does not render
-DT::renderDataTable(selected_county())
-
-# Value box for number of students in the county
+# Value box for number of all students in the county per cohort
 county_students <- reactive({
   df_county %>% 
-    filter(AGGREGATION_NAME == input$county & SUBGROUP_NAME == "All Students")
+    filter(COUNTY_NAME == input$county & Year == input$cohortYear) %>% 
+    filter(SUBGROUP_NAME == "All Students")
 })
 
 renderValueBox({
   enrolled_students <- format(county_students()$ENROLL_CNT, big.mark = ",") 
-  valueBox(caption = "Total Number of Enrolled Students", value = enrolled_students)
+  valueBox(caption = "Total Number of Cohort's Enrolled Students", value = 
+             enrolled_students)
 })
 
+```
+    
+### County vs. State Metrics Comparison
+```{r}
+
+# Dataset for county and cohort year
+selected_county <- reactive({
+  all_stud_long_bar %>%  
+    filter(Year == input$cohortYear) %>% 
+    filter(AGGREGATION_NAME == "All Districts and Charters" | 
+             COUNTY_NAME == input$county) 
+  })
+
 # Bar chart displaying graduation, dropout, still enrolled, and GED prep program rates by county as compared to NY state averages
-# **This does not render
+# Need to flip x-axis ticks by 90 degrees
 renderPlot({
   ggplot(selected_county()) +
     geom_bar(stat = "identity",
-             aes(x = variable, y = value, fill = AGGREGATION_NAME))
-    
+             aes(x = variable, y = value, fill = AGGREGATION_NAME),
+             position = "dodge") +
+  xlab("") +
+  ylab('Rate') + 
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size=14),
+        axis.title = element_text(size=14),
+        axis.text = element_text(size=14)) +
+  scale_y_continuous(breaks=seq(0,1,.10))
   })
 
 ```
