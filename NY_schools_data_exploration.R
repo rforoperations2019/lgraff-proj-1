@@ -2,6 +2,7 @@
 library(dplyr)
 library(ggplot2)
 library(reshape2)
+library(Hmisc)
 
 # Read and examine fields of dataset
 df_NY_schools <- read.csv(file = "GRAD_RATE_AND_OUTCOMES_2018.csv")
@@ -32,6 +33,9 @@ df_NY_schools_corrected <- cbind(df_NY_schools_withoutpct, new_pct)
 # Now convert the counts to numeric
 df_NY_schools_corrected[, c(20:28)] <- sapply(df_NY_schools_corrected[, c(20:28)],
                                               as.numeric)
+
+# Change county name format to a capital first letter and rest lowercase
+df_NY_schools_corrected$COUNTY_NAME <- capitalize(tolower(df_NY_schools_corrected$COUNTY_NAME))
 
 # Check to see if the number of reported dropouts makes sense
 df_NY_schools_corrected$dropout_check <- df_NY_schools_corrected$ENROLL_CNT - 
@@ -162,7 +166,7 @@ ggplot(data = test) +
            position = "dodge")
 
 
-# Demgographics
+# Demographics
 dem_test <- df_county %>% 
   filter(SUBGROUP_CODE %in% c(2,3)) %>% 
   filter(COUNTY_NAME == "BRONX" & Year == "2014")

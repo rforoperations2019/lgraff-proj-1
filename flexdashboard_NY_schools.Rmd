@@ -13,7 +13,7 @@ library(dplyr)
 library(ggplot2)
 library(reshape2)
 library(shiny)
-
+library(Hmisc)
 ```
 
 ```{r global, include=FALSE}
@@ -66,47 +66,14 @@ df_state <- subset(df_NY_schools_corrected,
 # Subset data to a single aggregation index. In this case, we will choose county
 df_county <- subset(x = df_NY_schools_corrected,
                     subset = AGGREGATION_TYPE == "County" &
-                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome')
+                      MEMBERSHIP_DESC != '2014 Total Cohort - 4 Year Outcome') %>% 
+  arrange(COUNTY_NAME)
 
 # Create dataset of county-level appended to state-level
 df_county_state <- rbind(df_county, df_state)
 
-# First look at data for all students
-all_stud <- df_county_state %>% 
-  filter(SUBGROUP_NAME == "All Students") %>% 
-  arrange(desc(DROPOUT_CNT))
-
-all_stud_long <- melt(all_stud,
-                      id.vars = c("AGGREGATION_TYPE", "AGGREGATION_NAME", 
-                                  "COUNTY_NAME", "AGGREGATION_CODE", "Year"))
-
-# Subset by variables of interest for bar chart
-all_stud_long_bar <- all_stud_long %>% 
-  filter(variable %in% c('GRAD_PCT', 'DROPOUT_PCT', 'STILL_ENR_PCT', 'GED_PCT'))
-
-all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
-
 # Create list of counties
-county_names <- all_stud_long_bar %>% 
-  filter(AGGREGATION_TYPE != "Statewide") %>% 
-  arrange(COUNTY_NAME)
-
-county_names$COUNTY_NAME <- as.character(county_names$COUNTY_NAME)
-
-
-# # Create individual subgroup datasets
-# df_gender <- df_county %>% 
-#   filter(SUBGROUP_NAME %in% c('Male', 'Female'))
-# 
-# df_race <- df_county %>% 
-#   filter(SUBGROUP_CODE %in% c(4,5,6,7,8,9))
-# 
-# # Test charts with Bronx county
-# # Remove later
-# bronx_test<- df_gender %>%  
-#   filter(AGGREGATION_NAME %in% c("County: BRONX")) %>% 
-#   arrange(desc(SUBGROUP_NAME)) %>% 
-#   mutate(y_label_pos = cumsum(ENROLL_CNT) - .5*ENROLL_CNT)
+df_county$COUNTY_NAME <- as.character(df_county$COUNTY_NAME)
 
 ```
 
@@ -116,15 +83,15 @@ Inputs {.sidebar}
 ```{r}
 
 # Select a county
-# Need to alphabetize
 selectInput(inputId = "county", "Select a county",
-            choices = unique(county_names$COUNTY_NAME))
+            choices = unique(df_county$COUNTY_NAME))
 
 br()
 
 # Select cohort year
 radioButtons(inputId = "cohortYear", "Select a cohort year",
               choices = unique(df_county_state$Year), selected = '2014')
+helpText("A cohort is the group of students who entered 9th grade in the chosen year.")
 
 
 br()
@@ -180,6 +147,20 @@ renderGauge({
 ### County vs. State Metrics Comparison
 
 ```{r}
+# Data aggregated for all students
+all_stud <- df_county_state %>% 
+  filter(SUBGROUP_NAME == "All Students") %>% 
+  arrange(desc(DROPOUT_CNT))
+
+all_stud_long <- melt(all_stud,
+                      id.vars = c("AGGREGATION_TYPE", "AGGREGATION_NAME", 
+                                  "COUNTY_NAME", "AGGREGATION_CODE", "Year"))
+
+# Subset by variables of interest for bar chart
+all_stud_long_bar <- all_stud_long %>% 
+  filter(variable %in% c('GRAD_PCT', 'DROPOUT_PCT', 'STILL_ENR_PCT', 'GED_PCT'))
+
+all_stud_long_bar$value = sapply(all_stud_long_bar$value, as.numeric)
 
 # Dataset for county and cohort year
 selected_county <- reactive({
@@ -190,7 +171,13 @@ selected_county <- reactive({
   })
 
 # Bar chart displaying graduation, dropout, still enrolled, and GED prep program rates by county as compared to NY state averages
-# Need to flip x-axis ticks by 90 degrees
+
+theme1 <- theme(legend.title = element_blank(),
+          legend.text = element_text(size=14),
+          axis.title = element_text(size=14),
+          axis.text = element_text(size=14),
+          plot.title = element_text(size=14))
+
 renderPlot({
   ggplot(selected_county()) +
     geom_bar(stat = "identity",
@@ -198,11 +185,9 @@ renderPlot({
              position = "dodge") +
     xlab("") +
     ylab('Rate') + 
-    theme(legend.title = element_blank(),
-        legend.text = element_text(size=14),
-        axis.title = element_text(size=14),
-        axis.text = element_text(size=14)) +
-    scale_y_continuous(breaks=seq(0,1,.10))
+    theme1 +
+    scale_y_continuous(breaks=seq(0,1,.10)) +
+    scale_fill_brewer(palette = "Set1")
   })
 
 ```
@@ -210,7 +195,10 @@ renderPlot({
 Student Demographics
 =====================================  
 
-### Metrics by Demographic Group
+Column
+-------------------------------------
+
+### Demographic Makeup
 
 ```{r}
 
@@ -218,19 +206,47 @@ dem_melt <- melt(df_county, id.vars = c("SUBGROUP_CODE", "SUBGROUP_NAME",
                                        "COUNTY_NAME", "Year")) %>% 
   filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT")) 
 dem_melt$value <- as.numeric(dem_melt$value)
-# Citation for this method: https://stackoverflow.com/questions/37710358/how-to-create-if-statement-with-reactive-values-in-r-shiny?rq=1
+
+# Citation for the following method: https://stackoverflow.com/questions/37710358/how-to-create-if-statement-with-reactive-values-in-r-shiny?rq=1
+
 # Select the subgroup codes for the given demographic input
 state <- reactiveValues()
 observeEvent(input$demoGroup, {
   if(input$demoGroup == "Gen") {
-    state$a = c(2,3)}
+    state$a = c(2,3)
+    state$b = c(2) # female code
+    state$c = "female"} 
   if(input$demoGroup == "Eth") {
-    state$a = c(4,5,6,7,8,9)}
+    state$a = c(4,5,6,7,8,9)
+    state$b = c(4,5,6,7,9) # non-white code
+    state$c = "non-white"}   
   if(input$demoGroup == "Eco") {
-    state$a = c(15,16)}
+    state$a = c(15,16)
+    state$b = c(15)  # eco disadvantaged code
+    state$c = "economically disadvantaged"}
   if(input$demoGroup == "ELL") {
-    state$a = c(12,13,14)}
+    state$a = c(12,13,14) 
+    state$b = c(13,14) # not ELL code
+    state$c = "former or current English language learners"} 
 })
+
+group_students <- reactive({
+  df_county %>% 
+  filter(SUBGROUP_CODE %in% state$b) %>% 
+  filter(COUNTY_NAME == input$county & Year == input$cohortYear) %>% 
+  select(ENROLL_CNT)
+})
+
+renderValueBox({
+  group_pct <- round(100*(sum(group_students()$ENROLL_CNT)/county_students()$ENROLL_CNT), 0)
+  valueBox(caption = paste("Students who are", state$c),
+           value = paste0(group_pct, "%"))
+})
+```
+
+### Metrics by Demographic Group
+
+```{r}
 # Filter by selected county, year, and demographic group
 selected_dem <- reactive({
   dem_melt %>% 
@@ -245,11 +261,9 @@ ggplot(data = selected_dem()) +
            position = "dodge") +
     xlab("") +
     ylab('Rate') +
-  theme(legend.title = element_blank(),
-        legend.text = element_text(size=14),
-        axis.title = element_text(size=14),
-        axis.text = element_text(size=14)) +
-  scale_y_continuous(breaks=seq(0,1,.10))
+  theme1 +
+  scale_y_continuous(breaks=seq(0,1,.10)) +
+    scale_fill_brewer(palette = "Set1")
 })
 
 ```
@@ -259,8 +273,11 @@ Metrics by Cohort
 
 ### 2012, 2013, and 2014 Cohort Performance
 
+Column
+-------------------------------------
 ```{r}
-p("According to NY State Education Department webiste, a cohort is defined as \"a group of students who first entered grade 9 in the same school year.\" For example, the 2012 cohort is the group of students who entered grade 9 in the year 2012.")
+p("According to NY State Education Department website, a cohort is defined as \"a group of students who first entered grade 9 in the same school year.\" For example, the 2012 cohort is the group of students who entered grade 9 in the year 2012.")
+br()
 ```
 
 ```{r}
@@ -274,31 +291,19 @@ cohort_county <- reactive({
     filter(COUNTY_NAME == input$county)
 })
 
-
 # Scatterplot of metrics by cohort
 renderPlot({
   ggplot(cohort_county()) +
     geom_point(aes(x = Year, y = value, color = variable), size = 7) +
-    ylab("") +
+    ylab("Rate") +
     xlab("Year") +
-    ggtitle(paste(input$cohortYear, "Cohort in",input$county, "county")) +
-    theme(legend.title = element_blank()) +
-    scale_y_continuous(breaks=seq(0,1,.10))
-})
+    ggtitle(paste(input$cohortYear, "Cohort in", capitalize(tolower(input$county)), "County")) +
+    theme1 +
+    scale_y_continuous(breaks=seq(0,1,.10)) +
+    scale_color_brewer(palette = "Set1")
+}, width = 800, height = 400
+)
   
 ```
-
-Page 1: General County-level Stats
-  inputs: county, year
-  outputs: bar chart comparing rates to NY state avg
-          value box: total enrolled
-          gauge: graduation rate
-Page 2: Stats by demographic
-  inputs: county, year, demographic group
-  outputs: bar chart comparing rates by group
-          gauge: ??        
-Page 3: Trends over time by county
-  inputs: county
-  outputs: scatterplot by year
 
 
