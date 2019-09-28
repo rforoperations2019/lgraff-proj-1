@@ -1,9 +1,11 @@
 ---
-title: "New York State Public Schools"
+title: "New York State Public Schools: Graduation Rates"
 output: 
  flexdashboard::flex_dashboard:
    orientation: rows
    source_code: embed
+   vertical_layout: scroll
+   horizontal_layout: scroll
 runtime: shiny
 ---
 
@@ -81,7 +83,6 @@ df_county$COUNTY_NAME <- as.character(df_county$COUNTY_NAME)
 Inputs {.sidebar}
 =====================================
 ```{r}
-
 # Select a county
 selectInput(inputId = "county", "Select a county:",
             choices = unique(df_county$COUNTY_NAME))
@@ -100,7 +101,7 @@ selectInput(inputId = "demoGroup", label = "Select a student demographic  group:
                    choices = c("Gender" = "Gen", "Ethnicity" = "Eth", "Economic 
                                Status" = "Eco", 
                                "English Language Learner" = "ELL"),
-                   selected = "Gender")
+                   selected = "Eth")
     
 ```
 
@@ -108,11 +109,11 @@ selectInput(inputId = "demoGroup", label = "Select a student demographic  group:
 General County-level Metrics
 =====================================  
 
-Row
+Row 
 -------------------------------------
 
 ### Student Enrollment
-```{r}
+```{r fig.height=8}
 
 # Value box for number of all students in the county per cohort
 county_students <- reactive({
@@ -131,7 +132,7 @@ renderValueBox({
 ```
 
 ### Graduation Rate
-```{r}
+```{r fig.height=12}
 renderGauge({
   grad_pct <-100*county_students()$GRAD_PCT
   gauge(grad_pct, min = 0, max = 100, symbol = '%', 
@@ -191,14 +192,21 @@ renderPlot({
 
 ```
 
+Row
+-------------------------------------
+```{r}
+br()
+p("1) Graduated: students who received a diploma; 2) Dropped out: students whose last enrollment record indicates they dropped out; 3) GED: students whose last enrollment record indicates they transferred to a high school equivalency program; 4) Still enrolled: students whose last enrollment record indicates they are still enrolled")
+```
+
 Student Demographics
 =====================================  
 
-Row {data-height=200}
+Row
 -------------------------------------
 
 ### Demographic Makeup
-```{r}
+```{r fig.height=8}
 
 dem_melt <- melt(df_county, id.vars = c("SUBGROUP_CODE", "SUBGROUP_NAME",
                                        "COUNTY_NAME", "Year")) %>% 
@@ -243,7 +251,7 @@ renderValueBox({
 })
 ```
 
-Row {data-height=500}
+Row
 -------------------------------------
 ### Metrics by Demographic Group
 ```{r}
@@ -268,10 +276,10 @@ ggplot(data = selected_dem()) +
 
 ```
 
-Row {data-height=300}
+Row
 -------------------------------------
 ### Datatable
-```{r}
+```{r fig.height=12}
 # All data for a given county
 county_data <- reactive({
   df_county %>% 
@@ -281,7 +289,7 @@ county_data <- reactive({
 
 DT::renderDataTable(
     DT::datatable(data = county_data(),
-                  options = list(pageLength = 25, scrollX = T))
+                  options = list(scrollY="100vh"))
   )
 ```
 

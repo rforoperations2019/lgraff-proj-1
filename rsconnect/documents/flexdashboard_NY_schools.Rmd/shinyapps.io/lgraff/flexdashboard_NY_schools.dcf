@@ -5,8 +5,8 @@ account: lgraff
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1252522
-bundleId: 2448775
+bundleId: 2451081
 url: https://lgraff.shinyapps.io/flexdashboard_NY_schools/
-when: 1569548372.89933
+when: 1569646701.59045
 asMultiple: FALSE
 asStatic: FALSE

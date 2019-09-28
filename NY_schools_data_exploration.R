@@ -175,7 +175,12 @@ dem_melt <- melt(df_county, id.vars = c("SUBGROUP_CODE", "SUBGROUP_NAME",
                                        "COUNTY_NAME", "Year")) %>% 
   filter(variable %in% c("GRAD_PCT", "DROPOUT_PCT", "STILL_ENR_PCT")) 
 
-dem_melt$value <- as.numeric(dem_melt_subset$value)
+dem_melt$value <- as.numeric(dem_melt$value)
+
+test <- df_county %>% 
+  filter(SUBGROUP_CODE %in% c(4,5,6,7,9)) %>% 
+  filter(COUNTY_NAME == "YATES" & Year == '2014') %>% 
+  select(ENROLL_CNT)
 
 ggplot(data = dem_melt_subset) +
   geom_bar(stat = "identity",
